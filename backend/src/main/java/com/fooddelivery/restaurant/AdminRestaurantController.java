@@ -1,10 +1,11 @@
 package com.fooddelivery.restaurant;
 
+import com.fooddelivery.common.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.util.List;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -25,17 +26,18 @@ public class AdminRestaurantController {
     }
 
     @GetMapping
-    public Page<RestaurantDtos.RestaurantResponse> getRestaurants(
+    public ApiResponse<List<RestaurantDtos.RestaurantResponse>> getRestaurants(
             @RequestParam(defaultValue = "PENDING") RestaurantStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return service.getRestaurantsByStatus(status, page, size);
+        Page<RestaurantDtos.RestaurantResponse> p = service.getRestaurantsByStatus(status, page, size);
+        return ApiResponse.page(p);
     }
 
     @PatchMapping("/{id}/status")
-    public RestaurantDtos.RestaurantResponse updateStatus(
+    public ApiResponse<RestaurantDtos.RestaurantResponse> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody RestaurantDtos.RestaurantStatusRequest request) {
-        return service.updateStatus(id, request.status());
+        return ApiResponse.ok(service.updateStatus(id, request.status()));
     }
 }

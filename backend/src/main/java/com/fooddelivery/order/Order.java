@@ -38,6 +38,12 @@ public class Order {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
+    @Version
+    private Long version = 0L;
+
     protected Order() {}
 
     public Order(Long customerId, Long restaurantId, Long addressId,
@@ -56,13 +62,19 @@ public class Order {
             throw new InvalidOrderStateException(status, next);
         }
         this.status = next;
-        // TODO: ghi order_status_history
+        this.updatedAt = Instant.now();
     }
+
+    public boolean ownedBy(Long userId) { return customerId != null && customerId.equals(userId); }
 
     public Long getId() { return id; }
     public Long getCustomerId() { return customerId; }
     public Long getRestaurantId() { return restaurantId; }
+    public Long getAddressId() { return addressId; }
     public OrderStatus getStatus() { return status; }
+    public BigDecimal getSubtotal() { return subtotal; }
+    public BigDecimal getDeliveryFee() { return deliveryFee; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }
