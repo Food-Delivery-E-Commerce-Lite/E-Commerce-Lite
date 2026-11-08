@@ -32,6 +32,9 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
     protected User() {}
 
     public User(String email, String passwordHash, String fullName, Role role) {
@@ -41,6 +44,14 @@ public class User {
         this.role = role;
     }
 
+    @PreUpdate
+    void touch() {
+        this.updatedAt = Instant.now();
+    }
+
+    public void deactivate() { this.active = false; }
+    public void activate() { this.active = true; }
+
     public Long getId() { return id; }
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
@@ -48,5 +59,7 @@ public class User {
     public String getPhone() { return phone; }
     public Role getRole() { return role; }
     public boolean isActive() { return active; }
+    public Instant getCreatedAt() { return createdAt; }
     public void setPhone(String phone) { this.phone = phone; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
 }

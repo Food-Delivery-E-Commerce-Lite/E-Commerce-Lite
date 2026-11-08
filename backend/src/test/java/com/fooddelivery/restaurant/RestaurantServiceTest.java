@@ -26,6 +26,9 @@ class RestaurantServiceTest {
     @Mock
     private MenuItemRepository menuItems;
 
+    @Mock
+    private ReviewRepository reviews;
+
     @InjectMocks
     private RestaurantService service;
 
@@ -60,5 +63,19 @@ class RestaurantServiceTest {
 
         assertEquals("INVALID_RESTAURANT_STATUS", exception.getCode());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+    }
+
+    @Test
+    void merchantUpdateApprovedRestaurantRequestsReapproval() {
+        Restaurant restaurant = new Restaurant(1L, "Old", null, "Address",
+            LocalTime.of(8, 0), LocalTime.of(22, 0));
+        restaurant.setStatus(RestaurantStatus.APPROVED);
+        when(restaurants.findById(10L)).thenReturn(Optional.of(restaurant));
+        RestaurantDtos.RestaurantRequest update = new RestaurantDtos.RestaurantRequest(
+            "New Name", null, "Address", null, null);
+
+        RestaurantDtos.RestaurantResponse res = service.updateRestaurant(1L, 10L, update);
+
+        assertEquals(RestaurantStatus.PENDING, res.status());
     }
 }

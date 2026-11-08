@@ -14,18 +14,20 @@ public class RestaurantService {
     private final RestaurantRepository restaurants;
     private final CategoryRepository categories;
     private final MenuItemRepository menuItems;
+    private final ReviewRepository reviews;
 
     public RestaurantService(RestaurantRepository restaurants, CategoryRepository categories,
-                             MenuItemRepository menuItems) {
+                             MenuItemRepository menuItems, ReviewRepository reviews) {
         this.restaurants = restaurants;
         this.categories = categories;
         this.menuItems = menuItems;
+        this.reviews = reviews;
     }
 
     @Transactional(readOnly = true)
     public Page<RestaurantDtos.RestaurantResponse> search(String keyword, int page, int size) {
         String normalizedKeyword = keyword == null || keyword.isBlank() ? null : keyword.trim();
-        PageRequest paging = PageRequest.of(page, size);
+        PageRequest paging = PageRequest.of(clampPage(page), clampSize(size));
         Page<Restaurant> results = normalizedKeyword == null
             ? restaurants.findByStatus(RestaurantStatus.APPROVED, paging)
             : restaurants.findByStatusAndNameContainingIgnoreCase(
@@ -35,20 +37,14 @@ public class RestaurantService {
 
     @Transactional(readOnly = true)
     public RestaurantDtos.RestaurantResponse getPublicRestaurant(Long id) {
-        Restaurant restaurant = getRestaurant(id);
-        if (restaurant.getStatus() != RestaurantStatus.APPROVED) {
-            throw new ResourceNotFoundException("Restaurant", id);
-        }
-        return RestaurantDtos.RestaurantResponse.from(restaurant);
+        return RestaurantDtos.RestaurantResponse.from(requireApproved(id));
     }
 
     @Transactional(readOnly = true)
     public List<RestaurantDtos.MenuItemResponse> getPublicMenu(Long id) {
-        Restaurant restaurant = getRestaurant(id);
-        if (restaurant.getStatus() != RestaurantStatus.APPROVED) {
-            throw new ResourceNotFoundException("Restaurant", id);
-        }
-        return menuItems.findByRestaurantIdAndAvailableTrue(id).stream()
+        requireApproved(id);
+        return menuItems.findByRestaurantId(id).stream()
+            .filter(MenuItem::isAvailable)
             .map(RestaurantDtos.MenuItemResponse::from).toList();
     }
 
@@ -67,9 +63,9 @@ public class RestaurantService {
     }
 
     @Transactional(readOnly = true)
-    public List<RestaurantDtos.RestaurantResponse> getOwnedRestaurants(Long ownerId) {
-        return restaurants.findByOwnerId(ownerId).stream()
-            .map(RestaurantDtos.RestaurantResponse::from).toList();
+    public Page<RestaurantDtos.RestaurantResponse> getOwnedRestaurants(Long ownerId, int page, int size) {
+        return restaurants.findByOwnerId(ownerId, PageRequest.of(clampPage(page), clampSize(size)))
+            .map(RestaurantDtos.RestaurantResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -81,8 +77,9 @@ public class RestaurantService {
     public RestaurantDtos.RestaurantResponse updateRestaurant(
             Long ownerId, Long restaurantId, RestaurantDtos.RestaurantRequest request) {
         Restaurant restaurant = getOwnedRestaurant(ownerId, restaurantId);
-        restaurant.update(request.name().trim(), request.description(), request.address().trim(),
-            request.openTime(), request.closeTime());
+        // Sửa quán đã duyệt phải duyệt lại -> chống lách kiểm duyệt
+        restaurant.updateAndRequestReapproval(request.name().trim(), request.description(),
+            request.address().trim(), request.openTime(), request.closeTime());
         return RestaurantDtos.RestaurantResponse.from(restaurant);
     }
 
@@ -119,7 +116,7 @@ public class RestaurantService {
     @Transactional(readOnly = true)
     public Page<RestaurantDtos.RestaurantResponse> getRestaurantsByStatus(
             RestaurantStatus status, int page, int size) {
-        return restaurants.findByStatus(status, PageRequest.of(page, size))
+        return restaurants.findByStatus(status, PageRequest.of(clampPage(page), clampSize(size)))
             .map(RestaurantDtos.RestaurantResponse::from);
     }
 
@@ -133,6 +130,14 @@ public class RestaurantService {
         Restaurant restaurant = getRestaurant(restaurantId);
         restaurant.setStatus(status);
         return RestaurantDtos.RestaurantResponse.from(restaurant);
+    }
+
+    private Restaurant requireApproved(Long id) {
+        Restaurant restaurant = getRestaurant(id);
+        if (restaurant.getStatus() != RestaurantStatus.APPROVED) {
+            throw new ResourceNotFoundException("Restaurant", id);
+        }
+        return restaurant;
     }
 
     private Restaurant getRestaurant(Long id) {
@@ -160,4 +165,7 @@ public class RestaurantService {
                 "Không tìm thấy danh mục " + categoryId, HttpStatus.NOT_FOUND);
         }
     }
+
+    private int clampPage(int page) { return Math.max(page, 0); }
+    private int clampSize(int size) { return Math.min(Math.max(size, 1), 100); }
 }
