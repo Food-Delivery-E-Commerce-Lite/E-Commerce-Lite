@@ -16,6 +16,10 @@ export async function cancelOrder(id) {
   const res = await api.post(`/orders/${id}/cancel`)
   return unwrap(res).data
 }
+export async function paymentCallback({ orderId, paymentRef, success }) {
+  const res = await api.post('/payments/callback', { orderId, paymentRef, success })
+  return unwrap(res).data
+}
 export async function createReview({ orderId, rating, comment }) {
   const res = await api.post('/reviews', { orderId, rating, comment })
   return unwrap(res).data

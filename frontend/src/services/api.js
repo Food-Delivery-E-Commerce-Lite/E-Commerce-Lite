@@ -1,22 +1,51 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api/v1', timeout: 15000 })
+const api = axios.create({ baseURL: '/api/v1', timeout: 15000, withCredentials: true })
 
-// Gắn JWT vào mọi request
+// Access token giữ trong bộ nhớ (không localStorage) để giảm XSS.
+// Refresh token nằm trong HttpOnly cookie do backend quản lý.
+let memoryToken = null
+export function setAccessToken(t) { memoryToken = t }
+export function getAccessToken() { return memoryToken }
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (memoryToken) config.headers.Authorization = `Bearer ${memoryToken}`
   return config
 })
 
-// Bắt 401 -> xóa token, chuyển về trang đăng nhập
+// Tự refresh 1 lần khi gặp 401, rồi retry request gốc
+let refreshing = null
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401 && !location.pathname.startsWith('/login')) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      location.href = '/login'
+  async (err) => {
+    const original = err.config
+    const url = original?.url || ''
+    const isAuthCall = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh')
+    if (err.response?.status === 401 && !original?._retried && !isAuthCall) {
+      original._retried = true
+      try {
+        if (!refreshing) {
+          refreshing = axios.post('/api/v1/auth/refresh', null, { withCredentials: true })
+            .then((r) => {
+              const body = r.data
+              const payload = body && typeof body === 'object' && 'data' in body ? body.data : body
+              return payload?.accessToken
+            })
+            .finally(() => { refreshing = null })
+        }
+        const newToken = await refreshing
+        if (newToken) {
+          setAccessToken(newToken)
+          // Đồng bộ cho AuthContext qua event
+          window.dispatchEvent(new CustomEvent('token-refreshed', { detail: newToken }))
+          original.headers.Authorization = `Bearer ${newToken}`
+          return api(original)
+        }
+      } catch {
+        // refresh thất bại -> về login
+      }
+      setAccessToken(null)
+      if (!location.pathname.startsWith('/login')) location.href = '/login'
     }
     return Promise.reject(err)
   },
