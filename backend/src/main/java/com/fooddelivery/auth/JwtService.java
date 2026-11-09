@@ -16,23 +16,29 @@ import org.springframework.stereotype.Service;
 @Service
 public class JwtService {
     private final SecretKey key;
-    private final long expirationMinutes;
+    private final long accessExpirationMinutes;
+    private final long refreshExpirationDays;
 
     public JwtService(@Value("${app.jwt.secret}") String secret,
-                      @Value("${app.jwt.expiration-minutes}") long expirationMinutes) {
-        // HS256 cần secret tối thiểu 32 byte
+                      @Value("${app.jwt.access-expiration-minutes:15}") long accessExpirationMinutes,
+                      @Value("${app.jwt.refresh-expiration-days:7}") long refreshExpirationDays) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expirationMinutes = expirationMinutes;
+        this.accessExpirationMinutes = accessExpirationMinutes;
+        this.refreshExpirationDays = refreshExpirationDays;
     }
 
     public String generateToken(User user) {
+        return generateAccessToken(user);
+    }
+
+    public String generateAccessToken(User user) {
         Instant now = Instant.now();
         return Jwts.builder()
             .subject(String.valueOf(user.getId()))
             .claim("email", user.getEmail())
             .claim("role", user.getRole().name())
             .issuedAt(Date.from(now))
-            .expiration(Date.from(now.plusSeconds(expirationMinutes * 60)))
+            .expiration(Date.from(now.plusSeconds(accessExpirationMinutes * 60)))
             .signWith(key)
             .compact();
     }
@@ -45,5 +51,6 @@ public class JwtService {
                             Role.valueOf(c.get("role", String.class)));
     }
 
-    public long getExpirationMinutes() { return expirationMinutes; }
+    public long getExpirationMinutes() { return accessExpirationMinutes; }
+    public long getRefreshExpirationDays() { return refreshExpirationDays; }
 }

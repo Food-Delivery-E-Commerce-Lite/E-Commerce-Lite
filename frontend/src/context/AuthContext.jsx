@@ -1,26 +1,42 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import api, { unwrap } from '../services/api.js'
+import api, { unwrap, setAccessToken, getAccessToken } from '../services/api.js'
 
 const AuthContext = createContext(null)
+const USER_KEY = 'fd_user'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('user')) || null } catch { return null }
+    try { return JSON.parse(sessionStorage.getItem(USER_KEY)) || null } catch { return null }
   })
   const [loading, setLoading] = useState(false)
 
+  const saveUser = (u) => {
+    setUser(u)
+    if (u) sessionStorage.setItem(USER_KEY, JSON.stringify(u))
+    else sessionStorage.removeItem(USER_KEY)
+  }
+
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (token && !user) {
-      api.get('/auth/me').then((res) => {
-        // /auth/me trả AuthUser thô (không bọc ApiResponse)
-        const u = res.data?.data ?? res.data
-        setUser(u)
-        localStorage.setItem('user', JSON.stringify(u))
-      }).catch(() => {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-      })
+    const onRefresh = (e) => {
+      // access token mới đã được api.js lưu, chỉ cần giữ user
+    }
+    window.addEventListener('token-refreshed', onRefresh)
+    return () => window.removeEventListener('token-refreshed', onRefresh)
+  }, [])
+
+  useEffect(() => {
+    // Thử refresh phiên cũ khi tải lại trang (cookie HttpOnly còn thì backend cấp token mới)
+    if (!getAccessToken() && !user) {
+      fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((body) => {
+          const payload = body && typeof body === 'object' && 'data' in body ? body.data : body
+          if (payload?.accessToken) {
+            setAccessToken(payload.accessToken)
+            saveUser(payload.user)
+          }
+        })
+        .catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -30,9 +46,8 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.post('/auth/login', { email, password })
       const { data } = unwrap(res)
-      localStorage.setItem('token', data.accessToken)
-      localStorage.setItem('user', JSON.stringify(data.user))
-      setUser(data.user)
+      setAccessToken(data.accessToken)
+      saveUser(data.user)
       return data.user
     } finally { setLoading(false) }
   }
@@ -42,20 +57,28 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.post('/auth/register', payload)
       const { data } = unwrap(res)
-      localStorage.setItem('token', data.accessToken)
-      localStorage.setItem('user', JSON.stringify(data.user))
-      setUser(data.user)
+      setAccessToken(data.accessToken)
+      saveUser(data.user)
       return data.user
     } finally { setLoading(false) }
   }
 
-  const logout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setUser(null)
+  const logout = async () => {
+    try { await api.post('/auth/logout') } catch { /* ignore */ }
+    setAccessToken(null)
+    saveUser(null)
   }
 
-  const value = useMemo(() => ({ user, loading, login, register, logout }), [user, loading])
+  const changePassword = async (oldPassword, newPassword) => {
+    const res = await api.post('/auth/change-password', { oldPassword, newPassword })
+    const { data } = unwrap(res)
+    // Đổi mật khẩu đá hết phiên cũ -> yêu cầu đăng nhập lại cho sạch
+    setAccessToken(null)
+    saveUser(null)
+    return data
+  }
+
+  const value = useMemo(() => ({ user, loading, login, register, logout, changePassword, setUser: saveUser }), [user, loading])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

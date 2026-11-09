@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,6 +78,14 @@ public class MerchantRestaurantController {
         return ApiResponse.ok(service.createMenuItem(user.id(), id, request));
     }
 
+    @GetMapping("/restaurants/{id}/menu-items")
+    public ApiResponse<List<RestaurantDtos.MenuItemResponse>> getOwnedMenu(
+            @AuthenticationPrincipal AuthUser user, @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.page(service.getOwnedMenu(user.id(), id, page, size));
+    }
+
     @PutMapping("/menu-items/{itemId}")
     public ApiResponse<RestaurantDtos.MenuItemResponse> updateMenuItem(
             @AuthenticationPrincipal AuthUser user, @PathVariable Long itemId,
@@ -91,13 +100,35 @@ public class MerchantRestaurantController {
         return ApiResponse.ok(service.updateAvailability(user.id(), itemId, request.available()));
     }
 
+    @DeleteMapping("/menu-items/{itemId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMenuItem(
+            @AuthenticationPrincipal AuthUser user, @PathVariable Long itemId) {
+        service.deleteMenuItem(user.id(), itemId);
+    }
+
     @GetMapping("/restaurants/{id}/orders")
-    public ApiResponse<List<com.fooddelivery.order.Order>> getRestaurantOrders(
+    public ApiResponse<List<OrderDtos.OrderResponse>> getRestaurantOrders(
             @AuthenticationPrincipal AuthUser user, @PathVariable Long id,
-            @RequestParam(defaultValue = "PENDING") OrderStatus status) {
-        // Chỉ chủ quán mới được xem
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        // Check chủ quán trước
         service.getOwnedRestaurantResponse(user.id(), id);
-        return ApiResponse.ok(orderRepository.findByRestaurantIdAndStatus(id, status));
+        if (status != null) {
+            List<OrderDtos.OrderResponse> list = orderRepository.findByRestaurantIdAndStatus(id, status)
+                .stream().map(o -> orderService.merchantOrderView(user.id(), o.getId())).toList();
+            return ApiResponse.ok(list);
+        }
+        var p = orderRepository.findByRestaurantIdOrderByCreatedAtDesc(
+            id, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100)));
+        return ApiResponse.page(p.map(o -> orderService.merchantOrderView(user.id(), o.getId())));
+    }
+
+    @GetMapping("/restaurants/{id}/stats")
+    public ApiResponse<OrderService.MerchantStats> stats(
+            @AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
+        return ApiResponse.ok(orderService.merchantStats(user.id(), id));
     }
 
     @PatchMapping("/orders/{orderId}/status")

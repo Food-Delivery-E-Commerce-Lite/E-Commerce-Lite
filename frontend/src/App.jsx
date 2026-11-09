@@ -9,6 +9,7 @@ import Orders from './pages/Orders.jsx'
 import OrderDetail from './pages/OrderDetail.jsx'
 import Merchant from './pages/Merchant.jsx'
 import Admin from './pages/Admin.jsx'
+import ChangePassword from './pages/ChangePassword.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import { useCart } from './context/CartContext.jsx'
@@ -41,6 +42,7 @@ function Layout() {
           <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
           <Route path="/merchant" element={<ProtectedRoute roles={['MERCHANT', 'ADMIN']}><Merchant /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute roles={['ADMIN']}><Admin /></ProtectedRoute>} />
+          <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         </Routes>
       </main>
     </>

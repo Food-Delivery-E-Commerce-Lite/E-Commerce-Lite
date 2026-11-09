@@ -3,6 +3,7 @@ package com.fooddelivery.restaurant;
 import com.fooddelivery.common.ApiResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +27,12 @@ public class RestaurantController {
     @GetMapping("/restaurants")
     public ApiResponse<List<RestaurantDtos.RestaurantResponse>> search(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) BigDecimal minRating,
+            @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return ApiResponse.page(service.search(keyword, page, size));
+        return ApiResponse.page(service.search(keyword, categoryId, minRating, sort, page, size));
     }
 
     @GetMapping("/restaurants/{id}")

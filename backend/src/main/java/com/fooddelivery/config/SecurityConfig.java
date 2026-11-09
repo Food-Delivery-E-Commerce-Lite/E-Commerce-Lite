@@ -41,7 +41,10 @@ public class SecurityConfig {
             .cors(c -> c.configurationSource(corsConfigurationSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
-                .requestMatchers("/api/v1/health", "/api/v1/auth/register", "/api/v1/auth/login",
+                .requestMatchers("/api/v1/health",
+                                 "/api/v1/auth/register", "/api/v1/auth/login",
+                                 "/api/v1/auth/refresh", "/api/v1/auth/logout",
+                                 "/api/v1/payments/callback",
                                  "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/restaurants/**", "/api/v1/categories", "/api/v1/reviews/**").permitAll()
                 .requestMatchers("/api/v1/merchant/**").hasAnyRole("MERCHANT", "ADMIN")
@@ -69,10 +72,12 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
+        // Dùng cookie refresh_token nên bắt buộc allowCredentials=true + origin cụ thể
         cfg.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
-        cfg.setAllowCredentials(false);
+        cfg.setAllowCredentials(true);
+        cfg.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;

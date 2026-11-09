@@ -29,6 +29,9 @@ public class User {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -51,6 +54,9 @@ public class User {
 
     public void deactivate() { this.active = false; }
     public void activate() { this.active = true; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean v) { this.mustChangePassword = v; }
+    public void setPasswordHash(String hash) { this.passwordHash = hash; }
 
     public Long getId() { return id; }
     public String getEmail() { return email; }

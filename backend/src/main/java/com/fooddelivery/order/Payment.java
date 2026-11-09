@@ -28,6 +28,12 @@ public class Payment {
     @Column(name = "paid_at")
     private Instant paidAt;
 
+    @Column(name = "payment_ref", unique = true)
+    private String paymentRef;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
     protected Payment() {}
 
     public Payment(Long orderId, Method method) {
@@ -38,11 +44,29 @@ public class Payment {
     public void markPaid() {
         this.status = Status.PAID;
         this.paidAt = Instant.now();
+        this.updatedAt = Instant.now();
     }
+
+    public void markPaid(String ref) {
+        this.status = Status.PAID;
+        this.paidAt = Instant.now();
+        this.updatedAt = Instant.now();
+        if (ref != null && !ref.isBlank()) this.paymentRef = ref;
+    }
+
+    public void markFailed(String ref) {
+        this.status = Status.FAILED;
+        this.updatedAt = Instant.now();
+        if (ref != null && !ref.isBlank()) this.paymentRef = ref;
+    }
+
+    public void setPaymentRef(String ref) { this.paymentRef = ref; this.updatedAt = Instant.now(); }
 
     public Long getId() { return id; }
     public Long getOrderId() { return orderId; }
     public Method getMethod() { return method; }
     public Status getStatus() { return status; }
     public Instant getPaidAt() { return paidAt; }
+    public String getPaymentRef() { return paymentRef; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }
