@@ -31,16 +31,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                AuthUser user = jwtService.parse(header.substring(7));
-                // Chống token của tài khoản đã bị khóa/xóa: kiểm tra DB mỗi request.
-                // Với hệ thống lớn hơn, thay bằng cache Redis + version trong token.
-                boolean allowed = users.findById(user.id())
-                    .map(u -> u.isActive())
-                    .orElse(false);
+                AuthUser parsed = jwtService.parse(header.substring(7));
+                var userOpt = users.findById(parsed.id());
+                boolean allowed = userOpt.map(u -> u.isActive()).orElse(false);
                 if (allowed) {
+                    var u = userOpt.get();
+                    AuthUser full = new AuthUser(u.getId(), u.getEmail(), u.getRole(), u.isMustChangePassword());
                     var auth = new UsernamePasswordAuthenticationToken(
-                        user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name())));
+                        full, null, List.of(new SimpleGrantedAuthority("ROLE_" + u.getRole().name())));
                     SecurityContextHolder.getContext().setAuthentication(auth);
+                    // Gắn cờ để frontend ép đổi mật khẩu
+                    request.setAttribute("mustChangePassword", u.isMustChangePassword());
                 } else {
                     SecurityContextHolder.clearContext();
                 }

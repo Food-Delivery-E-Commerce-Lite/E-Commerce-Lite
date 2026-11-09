@@ -18,7 +18,12 @@ public final class AuthDtos {
 
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
 
-    public record UserInfo(Long id, String email, String fullName, Role role) {}
+    public record UserInfo(Long id, String email, String fullName, Role role, boolean mustChangePassword) {}
 
+    // accessToken ngắn (15p). Refresh token nằm trong HttpOnly cookie, không trả qua body.
     public record AuthResponse(String accessToken, String tokenType, long expiresInMinutes, UserInfo user) {}
+
+    public record ChangePasswordRequest(
+        @NotBlank @Size(min = 8, max = 72) String oldPassword,
+        @NotBlank @Size(min = 8, max = 72) String newPassword) {}
 }
