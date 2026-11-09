@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
-import { createAddress, listAddresses, placeOrder } from '../services/order.js'
+import { createAddress, listAddresses, paymentCallback, placeOrder } from '../services/order.js'
 import { apiError } from '../services/api.js'
 
 export default function Checkout() {
@@ -16,13 +16,21 @@ export default function Checkout() {
   useEffect(() => { listAddresses().then(setAddresses).catch(() => setAddresses([])) }, [])
   const addNew = async () => {
     if (!street.trim()) return
-    const a = await createAddress({ street, isDefault: addresses.length === 0 })
-    setAddresses((p) => [...p, a]); setAddressId(a.id); setStreet('')
+    try {
+      const a = await createAddress({ street, isDefault: addresses.length === 0 })
+      setAddresses((p) => [...p, a]); setAddressId(a.id); setStreet('')
+    } catch (ex) { setErr(apiError(ex, 'Thêm địa chỉ thất bại')) }
   }
+  const shipFee = subtotal >= 200000 ? 0 : 15000
   const submit = async () => {
     setErr('')
     try {
       const order = await placeOrder({ restaurantId, addressId: Number(addressId), items: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })), method })
+      if (method === 'ONLINE') {
+        // Giả lập cổng thanh toán: tạo mã giao dịch rồi callback (idempotent ở backend)
+        const ref = `MOCK-${order.id}-${Date.now()}`
+        try { await paymentCallback({ orderId: order.id, paymentRef: ref, success: true }) } catch { /* vẫn qua trang chi tiết */ }
+      }
       clear(); nav(`/orders/${order.id}`)
     } catch (ex) { setErr(apiError(ex, 'Đặt hàng thất bại')) }
   }
@@ -30,7 +38,7 @@ export default function Checkout() {
   return (
     <section>
       <h2>Thanh toán</h2>
-      <p>Tạm tính: {subtotal.toLocaleString('vi-VN')}đ + phí ship 15.000đ</p>
+      <p>Tạm tính: {subtotal.toLocaleString('vi-VN')}đ + phí ship {shipFee === 0 ? 'MIỄN PHÍ (đơn ≥200k)' : '15.000đ'}</p>
       <h3>Địa chỉ giao hàng</h3>
       <select value={addressId} onChange={(e) => setAddressId(e.target.value)}>
         <option value="">-- Chọn địa chỉ --</option>
@@ -43,7 +51,7 @@ export default function Checkout() {
       <h3>Thanh toán</h3>
       <select value={method} onChange={(e) => setMethod(e.target.value)}>
         <option value="COD">Tiền mặt (COD)</option>
-        <option value="ONLINE">Online (giả lập)</option>
+        <option value="ONLINE">Online (giả lập callback)</option>
       </select>
       {err && <p className="error">{err}</p>}
       <div style={{ marginTop: 12 }}><button disabled={!addressId} onClick={submit}>Đặt hàng</button></div>

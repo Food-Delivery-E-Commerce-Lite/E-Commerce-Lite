@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import api, { unwrap } from '../services/api.js'
+import api, { unwrap, apiError } from '../services/api.js'
 import { cancelOrder, createReview, getOrder } from '../services/order.js'
-import { apiError } from '../services/api.js'
+
+const TERMINAL = ['COMPLETED', 'CANCELLED']
 
 export default function OrderDetail() {
   const { id } = useParams()
@@ -11,10 +12,27 @@ export default function OrderDetail() {
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [msg, setMsg] = useState('')
+
+  const reload = async (silent = false) => {
+    try {
+      const fresh = await getOrder(id)
+      setO(fresh)
+      const r = await api.get(`/orders/${id}/history`)
+      setHistory(unwrap(r).data ?? [])
+    } catch (ex) { if (!silent) setMsg(apiError(ex)) }
+  }
+
   useEffect(() => {
-    getOrder(id).then(setO).catch(() => setO(null))
-    api.get(`/orders/${id}/history`).then((r) => setHistory(unwrap(r).data ?? [])).catch(() => setHistory([]))
-  }, [id])
+    reload()
+    // Polling 5s tới khi đơn kết thúc (bản Lite, thay WebSocket)
+    const t = setInterval(async () => {
+      if (TERMINAL.includes(o?.status)) { clearInterval(t); return }
+      await reload(true)
+    }, 5000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, o?.status])
+
   if (!o) return <p>Đang tải đơn...</p>
   const cancel = async () => { try { setO(await cancelOrder(id)) } catch (ex) { setMsg(apiError(ex)) } }
   const review = async () => {
@@ -24,7 +42,7 @@ export default function OrderDetail() {
   }
   return (
     <section>
-      <h2>Đơn #{o.id} — {o.status}</h2>
+      <h2>Đơn #{o.id} — {o.status} {!TERMINAL.includes(o.status) && <small>(tự cập nhật 5s)</small>}</h2>
       <p>Tổng: {Number(o.totalAmount).toLocaleString('vi-VN')}đ · {o.payMethod} / {o.payStatus}</p>
       {o.items.map((i) => (<div key={i.itemId} className="card row"><span style={{ flex: 1 }}>{i.itemName} x{i.quantity}</span><b>{Number(i.lineTotal).toLocaleString('vi-VN')}đ</b></div>))}
       {(o.status === 'PENDING' || o.status === 'CONFIRMED') && <button onClick={cancel}>Hủy đơn</button>}
