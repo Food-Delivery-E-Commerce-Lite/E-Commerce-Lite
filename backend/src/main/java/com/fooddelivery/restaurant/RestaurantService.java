@@ -2,9 +2,14 @@ package com.fooddelivery.restaurant;
 
 import com.fooddelivery.common.exception.BusinessException;
 import com.fooddelivery.common.exception.ResourceNotFoundException;
+import jakarta.persistence.criteria.Predicate;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +29,50 @@ public class RestaurantService {
         this.reviews = reviews;
     }
 
+    /** Tìm kiếm nâng cao: keyword + category + rating tối thiểu + sắp xếp. */
+    @Transactional(readOnly = true)
+    public Page<RestaurantDtos.RestaurantResponse> search(String keyword, Long categoryId,
+                                                          BigDecimal minRating, String sort,
+                                                          int page, int size) {
+        PageRequest paging = PageRequest.of(clampPage(page), clampSize(size), resolveSort(sort));
+        Specification<Restaurant> spec = (root, q, cb) -> {
+            List<Predicate> ps = new ArrayList<>();
+            ps.add(cb.equal(root.get("status"), RestaurantStatus.APPROVED));
+            if (keyword != null && !keyword.isBlank()) {
+                ps.add(cb.like(cb.lower(root.get("name")), "%" + keyword.trim().toLowerCase() + "%"));
+            }
+            if (minRating != null) {
+                ps.add(cb.greaterThanOrEqualTo(root.get("averageRating"), minRating));
+            }
+            if (categoryId != null) {
+                var sub = q.subquery(Long.class);
+                var mi = sub.from(MenuItem.class);
+                sub.select(mi.get("restaurantId"))
+                   .where(cb.and(
+                       cb.equal(mi.get("restaurantId"), root.get("id")),
+                       cb.equal(mi.get("categoryId"), categoryId),
+                       cb.isTrue(mi.get("available"))));
+                ps.add(cb.exists(sub));
+            }
+            return cb.and(ps.toArray(new Predicate[0]));
+        };
+        return restaurants.search(spec, paging).map(RestaurantDtos.RestaurantResponse::from);
+    }
+
+    // Giữ tương thích API cũ
     @Transactional(readOnly = true)
     public Page<RestaurantDtos.RestaurantResponse> search(String keyword, int page, int size) {
-        String normalizedKeyword = keyword == null || keyword.isBlank() ? null : keyword.trim();
-        PageRequest paging = PageRequest.of(clampPage(page), clampSize(size));
-        Page<Restaurant> results = normalizedKeyword == null
-            ? restaurants.findByStatus(RestaurantStatus.APPROVED, paging)
-            : restaurants.findByStatusAndNameContainingIgnoreCase(
-                RestaurantStatus.APPROVED, normalizedKeyword, paging);
-        return results.map(RestaurantDtos.RestaurantResponse::from);
+        return search(keyword, null, null, "newest", page, size);
+    }
+
+    private Sort resolveSort(String sort) {
+        if ("rating".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Direction.DESC, "averageRating").and(Sort.by(Sort.Direction.DESC, "id"));
+        }
+        if ("name".equalsIgnoreCase(sort)) {
+            return Sort.by(Sort.Direction.ASC, "name");
+        }
+        return Sort.by(Sort.Direction.DESC, "id");
     }
 
     @Transactional(readOnly = true)
@@ -111,6 +151,22 @@ public class RestaurantService {
         getOwnedRestaurant(ownerId, item.getRestaurantId());
         item.setAvailable(available);
         return RestaurantDtos.MenuItemResponse.from(item);
+    }
+
+    @Transactional
+    public void deleteMenuItem(Long ownerId, Long itemId) {
+        MenuItem item = getMenuItem(itemId);
+        getOwnedRestaurant(ownerId, item.getRestaurantId());
+        menuItems.delete(item);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<RestaurantDtos.MenuItemResponse> getOwnedMenu(
+            Long ownerId, Long restaurantId, int page, int size) {
+        getOwnedRestaurant(ownerId, restaurantId);
+        return menuItems.findByRestaurantId(restaurantId,
+                PageRequest.of(clampPage(page), clampSize(size)))
+            .map(RestaurantDtos.MenuItemResponse::from);
     }
 
     @Transactional(readOnly = true)
