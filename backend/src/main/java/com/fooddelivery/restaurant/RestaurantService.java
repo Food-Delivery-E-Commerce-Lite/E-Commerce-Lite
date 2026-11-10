@@ -99,6 +99,7 @@ public class RestaurantService {
             Long ownerId, RestaurantDtos.RestaurantRequest request) {
         Restaurant restaurant = new Restaurant(ownerId, request.name().trim(),
             request.description(), request.address().trim(), request.openTime(), request.closeTime());
+        restaurant.setImageUrl(normalizeUrl(request.imageUrl()));
         return RestaurantDtos.RestaurantResponse.from(restaurants.save(restaurant));
     }
 
@@ -120,6 +121,7 @@ public class RestaurantService {
         // Sửa quán đã duyệt phải duyệt lại -> chống lách kiểm duyệt
         restaurant.updateAndRequestReapproval(request.name().trim(), request.description(),
             request.address().trim(), request.openTime(), request.closeTime());
+        restaurant.setImageUrl(normalizeUrl(request.imageUrl()));
         return RestaurantDtos.RestaurantResponse.from(restaurant);
     }
 
@@ -129,7 +131,7 @@ public class RestaurantService {
         getOwnedRestaurant(ownerId, restaurantId);
         validateCategory(request.categoryId());
         MenuItem item = new MenuItem(restaurantId, request.categoryId(), request.name().trim(),
-            request.description(), request.price(), request.imageUrl());
+            request.description(), request.price(), normalizeUrl(request.imageUrl()));
         return RestaurantDtos.MenuItemResponse.from(menuItems.save(item));
     }
 
@@ -140,7 +142,7 @@ public class RestaurantService {
         getOwnedRestaurant(ownerId, item.getRestaurantId());
         validateCategory(request.categoryId());
         item.update(request.categoryId(), request.name().trim(), request.description(),
-            request.price(), request.imageUrl());
+            request.price(), normalizeUrl(request.imageUrl()));
         return RestaurantDtos.MenuItemResponse.from(item);
     }
 
@@ -224,4 +226,15 @@ public class RestaurantService {
 
     private int clampPage(int page) { return Math.max(page, 0); }
     private int clampSize(int size) { return Math.min(Math.max(size, 1), 100); }
+
+    /** Chuẩn hóa URL ảnh: cho phép /uploads/... hoặc http(s), chặn javascript:/file: */
+    private String normalizeUrl(String url) {
+        if (url == null) return null;
+        String v = url.trim();
+        if (v.isEmpty()) return null;
+        if (v.startsWith("/uploads/")) return v;
+        if (v.startsWith("http://") || v.startsWith("https://")) return v;
+        throw new BusinessException("INVALID_IMAGE_URL",
+            "Link ảnh phải là /uploads/... hoặc http(s)", HttpStatus.BAD_REQUEST);
+    }
 }

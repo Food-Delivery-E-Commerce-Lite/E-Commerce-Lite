@@ -15,7 +15,8 @@ public final class RestaurantDtos {
         @Size(max = 4000) String description,
         @NotBlank @Size(max = 250) String address,
         LocalTime openTime,
-        LocalTime closeTime
+        LocalTime closeTime,
+        @Size(max = 500) String imageUrl
     ) {}
 
     public record RestaurantResponse(
@@ -27,6 +28,7 @@ public final class RestaurantDtos {
         LocalTime openTime,
         LocalTime closeTime,
         RestaurantStatus status,
+        String imageUrl,
         BigDecimal averageRating,
         int ratingCount
     ) {
@@ -34,6 +36,7 @@ public final class RestaurantDtos {
             return new RestaurantResponse(restaurant.getId(), restaurant.getOwnerId(),
                 restaurant.getName(), restaurant.getDescription(), restaurant.getAddress(),
                 restaurant.getOpenTime(), restaurant.getCloseTime(), restaurant.getStatus(),
+                restaurant.getImageUrl(),
                 restaurant.getAverageRating(), restaurant.getRatingCount());
         }
     }
@@ -44,7 +47,7 @@ public final class RestaurantDtos {
         @NotBlank @Size(max = 150) String name,
         @Size(max = 4000) String description,
         @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal price,
-        @Size(max = 300) String imageUrl,
+        @Size(max = 500) String imageUrl,
         Long categoryId
     ) {}
 

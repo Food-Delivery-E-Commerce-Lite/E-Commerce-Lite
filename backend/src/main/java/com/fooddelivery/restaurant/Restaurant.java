@@ -45,6 +45,9 @@ public class Restaurant {
     @Column(nullable = false)
     private RestaurantStatus status = RestaurantStatus.PENDING;
 
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @Column(name = "avg_rating", nullable = false)
     private BigDecimal averageRating = BigDecimal.ZERO;
 
@@ -93,6 +96,11 @@ public class Restaurant {
         this.updatedAt = Instant.now();
     }
 
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+        this.updatedAt = Instant.now();
+    }
+
     /** Cập nhật rating trung bình nguyên tử trong transaction (gọi kèm lock lạc quan). */
     public void addRating(int rating) {
         BigDecimal total = averageRating.multiply(BigDecimal.valueOf(ratingCount))
@@ -117,6 +125,7 @@ public class Restaurant {
     public LocalTime getOpenTime() { return openTime; }
     public LocalTime getCloseTime() { return closeTime; }
     public RestaurantStatus getStatus() { return status; }
+    public String getImageUrl() { return imageUrl; }
     public BigDecimal getAverageRating() { return averageRating; }
     public int getRatingCount() { return ratingCount; }
     public Instant getUpdatedAt() { return updatedAt; }
