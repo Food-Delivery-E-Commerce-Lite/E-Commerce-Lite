@@ -1,0 +1,10 @@
+---
+alwaysApply: true
+---
+# Quy tắc ngôn ngữ: Tiếng Việt
+
+- Mọi câu trả lời trong chat PHẢI dùng tiếng Việt có dấu (không dùng tiếng Trung, không dùng tiếng Anh trừ thuật ngữ kỹ thuật).
+- Thuật ngữ kỹ thuật (tên class, method, lệnh git, tên file) giữ nguyên tiếng Anh, đặt trong backticks, nhưng phần giải thích xung quanh vẫn là tiếng Việt.
+- Ví dụ: "Tôi đã tạo `VoucherService.java` để xử lý mã giảm giá."
+- Không hỏi lại "bạn muốn tiếng gì" — mặc định luôn là tiếng Việt.
+- Thông báo tool (tên lệnh vừa chạy) có thể là tiếng Anh ngắn gọn, nhưng nội dung chính trong chat vẫn là tiếng Việt.
