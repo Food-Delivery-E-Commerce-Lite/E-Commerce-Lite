@@ -17,14 +17,15 @@ export default function Login() {
   }
   return (
     <section className="form-wrap">
-      <h2>Đăng nhập</h2>
+      <h2>Chào mừng trở lại 👋</h2>
+      <p className="sub">Đăng nhập để đặt món, theo dõi đơn realtime.</p>
       <form onSubmit={submit}>
         <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <input placeholder="Mật khẩu" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {err && <p className="error">{err}</p>}
         <button type="submit">Đăng nhập</button>
       </form>
-      <p>Chưa có tài khoản? <Link to="/register">Đăng ký</Link></p>
+      <p>Chưa có tài khoản? <Link to="/register">Đăng ký miễn phí</Link></p>
     </section>
   )
 }

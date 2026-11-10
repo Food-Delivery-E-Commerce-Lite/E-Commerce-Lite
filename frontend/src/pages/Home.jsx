@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api.js'
 import { getCategories, searchRestaurants } from '../services/restaurant.js'
+import { resolveImage, withFallback, FALLBACK_IMG } from '../services/upload.js'
 
 export default function Home() {
   const [status, setStatus] = useState('đang kiểm tra...')
@@ -16,7 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    api.get('/health').then((res) => setStatus(res.data.status)).catch(() => setStatus('không kết nối được backend'))
+    api.get('/health').then((res) => setStatus(res.data.status)).catch(() => setStatus('mất kết nối'))
     getCategories().then(setCats).catch(() => setCats([]))
   }, [])
 
@@ -34,20 +35,26 @@ export default function Home() {
   }
   useEffect(() => { load(0) }, [])
 
+  const online = status === 'UP'
+
   return (
     <section>
-      <h1>Danh sách nhà hàng</h1>
-      <p>Trạng thái API: <b>{status}</b></p>
-      <form onSubmit={(e) => { e.preventDefault(); load(0) }} style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="Tìm phở, cơm, trà sữa..." style={{ flex: 2, minWidth: 180 }} />
+      <div className="hero">
+        <h1>Ăn ngon, giao nhanh ⚡</h1>
+        <p>Hàng trăm quán ngon quanh bạn · Miễn phí ship đơn từ 200k · Voucher mỗi ngày.</p>
+        <span className="api-dot"><span className="dot" style={{ background: online ? '#4ade80' : '#fbbf24' }} /> API: {online ? 'sẵn sàng' : status}</span>
+      </div>
+
+      <form className="toolbar" onSubmit={(e) => { e.preventDefault(); load(0) }}>
+        <input className="search-input" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="Tìm phở, cơm gà, trà sữa..." />
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           <option value="">Tất cả danh mục</option>
           {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select value={minRating} onChange={(e) => setMinRating(e.target.value)}>
           <option value="">Mọi rating</option>
-          <option value="4">★ 4+</option>
-          <option value="3">★ 3+</option>
+          <option value="4">★ 4.0 trở lên</option>
+          <option value="3">★ 3.0 trở lên</option>
         </select>
         <select value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="newest">Mới nhất</option>
@@ -56,23 +63,44 @@ export default function Home() {
         </select>
         <button type="submit">Tìm kiếm</button>
       </form>
-      {loading ? <p>Đang tải...</p> : (
+
+      <div className="section-head">
+        <div><h2>Quán nổi bật</h2><p>{items.length > 0 ? `${items.length} quán đang mở bán` : 'Khám phá món ngon hôm nay'}</p></div>
+      </div>
+
+      {loading ? (
+        <div className="grid">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" />)}</div>
+      ) : (
         <div className="grid">
           {items.map((r) => (
-            <Link key={r.id} to={`/restaurants/${r.id}`} className="card">
-              <h3>{r.name}</h3>
-              <p>{r.address}</p>
-              <small>★ {r.averageRating} ({r.ratingCount}) · {r.status}</small>
+            <Link key={r.id} to={`/restaurants/${r.id}`} className="card hover">
+              <img className="cover" src={resolveImage(r.imageUrl) || FALLBACK_IMG} onError={withFallback} alt={r.name} loading="lazy" />
+              <h3 className="rest-name">{r.name}</h3>
+              <p className="rest-addr">{r.address}</p>
+              <div className="meta-row">
+                <span className="rating">★ {Number(r.averageRating ?? 0).toFixed(1)} <span style={{ fontWeight: 400 }}>({r.ratingCount ?? 0})</span></span>
+                <span className="badge open">Đang mở</span>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>· Freeship 200k+</span>
+              </div>
             </Link>
           ))}
         </div>
       )}
-      {items.length === 0 && !loading && <p>Không tìm thấy nhà hàng phù hợp.</p>}
-      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-        <button disabled={page <= 0} onClick={() => load(page - 1)}>Trang trước</button>
-        <span>Trang {page + 1}/{Math.max(totalPages, 1)}</span>
-        <button disabled={page + 1 >= totalPages} onClick={() => load(page + 1)}>Trang sau</button>
-      </div>
+      {items.length === 0 && !loading && (
+        <div className="card" style={{ textAlign: 'center', padding: 32 }}>
+          <div style={{ fontSize: 44 }}>🍽️</div>
+          <h3>Không tìm thấy quán phù hợp</h3>
+          <p style={{ color: '#6b7280' }}>Thử từ khóa khác hoặc bỏ bộ lọc rating nhé.</p>
+          <button className="ghost" onClick={() => { setKeyword(''); setCategoryId(''); setMinRating(''); setSort('newest'); load(0) }}>Xóa bộ lọc</button>
+        </div>
+      )}
+      {totalPages > 1 && (
+        <div className="pager">
+          <button className="ghost small" disabled={page <= 0} onClick={() => load(page - 1)}>← Trước</button>
+          <span>Trang {page + 1} / {Math.max(totalPages, 1)}</span>
+          <button className="ghost small" disabled={page + 1 >= totalPages} onClick={() => load(page + 1)}>Sau →</button>
+        </div>
+      )}
     </section>
   )
 }

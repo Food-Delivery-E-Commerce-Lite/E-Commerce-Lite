@@ -16,15 +16,16 @@ export default function Register() {
   }
   return (
     <section className="form-wrap">
-      <h2>Đăng ký</h2>
+      <h2>Tạo tài khoản 🎉</h2>
+      <p className="sub">Miễn phí · Nhận voucher SALE10 cho đơn đầu tiên.</p>
       <form onSubmit={submit}>
         <input placeholder="Họ tên" value={form.fullName} onChange={set('fullName')} required />
         <input placeholder="Email" value={form.email} onChange={set('email')} required />
         <input placeholder="Mật khẩu (≥8 ký tự)" type="password" value={form.password} onChange={set('password')} required />
         <input placeholder="Số điện thoại" value={form.phone} onChange={set('phone')} />
         <select value={form.role} onChange={set('role')}>
-          <option value="CUSTOMER">Khách hàng</option>
-          <option value="MERCHANT">Chủ quán (Merchant)</option>
+          <option value="CUSTOMER">Khách hàng — đặt món</option>
+          <option value="MERCHANT">Chủ quán (Merchant) — bán hàng</option>
         </select>
         {err && <p className="error">{err}</p>}
         <button type="submit">Tạo tài khoản</button>
