@@ -1,4 +1,4 @@
-import { Link, Route, Routes, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -19,16 +19,19 @@ function Layout() {
   const { count } = useCart()
   const nav = useNavigate()
   const onLogout = () => { logout(); nav('/') }
+  const linkCls = ({ isActive }) => (isActive ? 'active' : '')
   return (
     <>
       <nav>
-        <Link to="/">Food Delivery</Link>
-        <Link to="/cart">Giỏ hàng ({count})</Link>
-        <Link to="/orders">Đơn hàng</Link>
-        {user?.role === 'MERCHANT' && <Link to="/merchant">Kênh bán</Link>}
-        {user?.role === 'ADMIN' && <Link to="/admin">Quản trị</Link>}
-        <span style={{ marginLeft: 'auto' }} />
-        {user ? (<><span>Xin chào, {user.fullName || user.email}</span><button onClick={onLogout}>Đăng xuất</button></>) : (<><Link to="/login">Đăng nhập</Link><Link to="/register">Đăng ký</Link></>)}
+        <Link to="/" className="brand">🍔 Food Delivery</Link>
+        <NavLink to="/" end className={linkCls}>Khám phá</NavLink>
+        <NavLink to="/cart" className={linkCls}>Giỏ hàng ({count})</NavLink>
+        <NavLink to="/orders" className={linkCls}>Đơn hàng</NavLink>
+        {user?.role === 'MERCHANT' && <NavLink to="/merchant" className={linkCls}>Kênh bán</NavLink>}
+        {user?.role === 'ADMIN' && <NavLink to="/admin" className={linkCls}>Quản trị</NavLink>}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }} >
+          {user ? (<><span style={{ fontSize: 13, color: '#4b5563', fontWeight: 600 }}>Xin chào, {user.fullName || user.email}</span><button className="ghost small" onClick={onLogout}>Đăng xuất</button></>) : (<><Link to="/login">Đăng nhập</Link><Link to="/register">Đăng ký</Link></>)}
+        </span>
       </nav>
       <main>
         <Routes>
@@ -44,6 +47,7 @@ function Layout() {
           <Route path="/admin" element={<ProtectedRoute roles={['ADMIN']}><Admin /></ProtectedRoute>} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         </Routes>
+        <div className="footer">Food Delivery Lite · Giao ngon mỗi ngày · Miễn phí ship đơn từ 200k</div>
       </main>
     </>
   )
