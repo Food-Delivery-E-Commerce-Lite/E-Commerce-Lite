@@ -1,7 +1,7 @@
 import api, { unwrap } from './api.js'
 
-export async function placeOrder({ restaurantId, addressId, items, method = 'COD' }) {
-  const res = await api.post('/orders', { restaurantId, addressId, items, method })
+export async function placeOrder({ restaurantId, addressId, items, method = 'COD', voucherCode = null }) {
+  const res = await api.post('/orders', { restaurantId, addressId, items, method, voucherCode: voucherCode || undefined })
   return unwrap(res).data
 }
 export async function myOrders(page = 0, size = 20) {
@@ -18,6 +18,10 @@ export async function cancelOrder(id) {
 }
 export async function paymentCallback({ orderId, paymentRef, success }) {
   const res = await api.post('/payments/callback', { orderId, paymentRef, success })
+  return unwrap(res).data
+}
+export async function refundPayment(orderId) {
+  const res = await api.post(`/payments/orders/${orderId}/refund`)
   return unwrap(res).data
 }
 export async function createReview({ orderId, rating, comment }) {
