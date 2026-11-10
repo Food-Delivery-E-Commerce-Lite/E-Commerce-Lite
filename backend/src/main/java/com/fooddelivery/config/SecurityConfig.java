@@ -44,9 +44,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/health",
                                  "/api/v1/auth/register", "/api/v1/auth/login",
                                  "/api/v1/auth/refresh", "/api/v1/auth/logout",
-                                 "/api/v1/payments/callback",
+                                 "/ws/**",
                                  "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/restaurants/**", "/api/v1/categories", "/api/v1/reviews/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/restaurants/**", "/api/v1/categories", "/api/v1/reviews/**", "/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/uploads").hasAnyRole("MERCHANT", "ADMIN")
                 .requestMatchers("/api/v1/merchant/**").hasAnyRole("MERCHANT", "ADMIN")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
@@ -73,9 +74,11 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         // Dùng cookie refresh_token nên bắt buộc allowCredentials=true + origin cụ thể
+        // Không dùng "*" khi allowCredentials=true (trình duyệt sẽ chặn)
         cfg.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        cfg.setExposedHeaders(List.of("Set-Cookie"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

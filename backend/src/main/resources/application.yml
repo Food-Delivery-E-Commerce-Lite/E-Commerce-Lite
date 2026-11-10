@@ -14,6 +14,10 @@ spring:
         format_sql: true
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 6MB
 app:
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-change-me-dev-only-secret-32chars!}
@@ -30,6 +34,9 @@ app:
   delivery:
     base-fee: ${DELIVERY_BASE_FEE:15000}
     free-threshold: ${DELIVERY_FREE_THRESHOLD:200000}
+  upload:
+    dir: ${UPLOAD_DIR:uploads}
+    max-mb: ${UPLOAD_MAX_MB:5}
 server:
   port: 8080
   forward-headers-strategy: framework
