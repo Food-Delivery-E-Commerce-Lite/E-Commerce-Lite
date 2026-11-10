@@ -72,7 +72,12 @@ public class AuthService {
             .orElseThrow(() -> new BusinessException("INVALID_REFRESH",
                 "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại", HttpStatus.UNAUTHORIZED));
         if (stored.isRevoked() || stored.isExpired()) {
-            stored.revoke();
+            // Token đã xoay vòng mà bị dùng lại -> nghi bị đánh cắp: đá hết mọi phiên cho an toàn
+            if (stored.isRevoked()) {
+                try { refreshTokens.revokeAllByUser(stored.getUserId()); } catch (Exception ignored) { }
+            } else {
+                stored.revoke();
+            }
             throw new BusinessException("INVALID_REFRESH",
                 "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại", HttpStatus.UNAUTHORIZED);
         }
