@@ -28,10 +28,14 @@ services:
       LOGIN_WINDOW_SECONDS: ${LOGIN_WINDOW_SECONDS:-60}
       DELIVERY_BASE_FEE: ${DELIVERY_BASE_FEE:-15000}
       DELIVERY_FREE_THRESHOLD: ${DELIVERY_FREE_THRESHOLD:-200000}
+      UPLOAD_DIR: /app/uploads
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-5}
     ports: ["8080:8080"]
+    volumes: [uploads:/app/uploads]
   frontend:
     build: ./frontend
     depends_on: [backend]
     ports: ["5173:80"]
 volumes:
   pgdata:
+  uploads:

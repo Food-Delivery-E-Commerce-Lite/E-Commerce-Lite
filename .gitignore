@@ -13,3 +13,5 @@ dist/
 .vscode/
 *.iml
 .DS_Store
+# Uploads local
+uploads/

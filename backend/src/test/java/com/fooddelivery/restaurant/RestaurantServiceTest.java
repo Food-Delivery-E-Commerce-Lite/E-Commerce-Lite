@@ -38,7 +38,7 @@ class RestaurantServiceTest {
             LocalTime.of(8, 0), LocalTime.of(22, 0));
         when(restaurants.findById(10L)).thenReturn(Optional.of(restaurant));
         RestaurantDtos.RestaurantRequest update = new RestaurantDtos.RestaurantRequest(
-            "Updated", null, "Address", null, null);
+            "Updated", null, "Address", null, null, null);
 
         BusinessException exception = assertThrows(BusinessException.class,
             () -> service.updateRestaurant(1L, 10L, update));
@@ -72,7 +72,7 @@ class RestaurantServiceTest {
         restaurant.setStatus(RestaurantStatus.APPROVED);
         when(restaurants.findById(10L)).thenReturn(Optional.of(restaurant));
         RestaurantDtos.RestaurantRequest update = new RestaurantDtos.RestaurantRequest(
-            "New Name", null, "Address", null, null);
+            "New Name", null, "Address", null, null, null);
 
         RestaurantDtos.RestaurantResponse res = service.updateRestaurant(1L, 10L, update);
 
