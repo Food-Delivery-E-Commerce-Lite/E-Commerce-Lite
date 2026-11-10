@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -17,7 +18,8 @@ public final class OrderDtos {
         @NotNull Long restaurantId,
         @NotNull Long addressId,
         @NotEmpty List<CartLine> items,
-        Payment.Method method) {
+        Payment.Method method,
+        @Size(max = 50) String voucherCode) {
         public PlaceOrderRequest {
             if (method == null) method = Payment.Method.COD;
         }
@@ -31,7 +33,8 @@ public final class OrderDtos {
 
     public record OrderResponse(
         Long id, Long restaurantId, Long addressId, OrderStatus status,
-        BigDecimal subtotal, BigDecimal deliveryFee, BigDecimal totalAmount,
+        BigDecimal subtotal, BigDecimal deliveryFee, BigDecimal discountAmount,
+        String voucherCode, BigDecimal totalAmount,
         Payment.Method payMethod, Payment.Status payStatus,
         List<OrderItemView> items, Instant createdAt) {}
 

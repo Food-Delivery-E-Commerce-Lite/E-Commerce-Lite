@@ -60,6 +60,13 @@ public class Payment {
         if (ref != null && !ref.isBlank()) this.paymentRef = ref;
     }
 
+    /** Hoàn tiền đơn ONLINE đã PAID (khi hủy đơn). Idempotent. */
+    public void markRefunded() {
+        if (this.status == Status.REFUNDED) return;
+        this.status = Status.REFUNDED;
+        this.updatedAt = Instant.now();
+    }
+
     public void setPaymentRef(String ref) { this.paymentRef = ref; this.updatedAt = Instant.now(); }
 
     public Long getId() { return id; }

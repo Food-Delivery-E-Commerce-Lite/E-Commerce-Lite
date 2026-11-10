@@ -35,6 +35,15 @@ public class Order {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
+    @Column(name = "discount_amount", nullable = false)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column(name = "voucher_code", length = 50)
+    private String voucherCode;
+
+    @Column(name = "voucher_id")
+    private Long voucherId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -48,12 +57,23 @@ public class Order {
 
     public Order(Long customerId, Long restaurantId, Long addressId,
                  BigDecimal subtotal, BigDecimal deliveryFee) {
+        this(customerId, restaurantId, addressId, subtotal, deliveryFee,
+            BigDecimal.ZERO, null, null);
+    }
+
+    public Order(Long customerId, Long restaurantId, Long addressId,
+                 BigDecimal subtotal, BigDecimal deliveryFee,
+                 BigDecimal discount, String voucherCode, Long voucherId) {
         this.customerId = customerId;
         this.restaurantId = restaurantId;
         this.addressId = addressId;
         this.subtotal = subtotal;
         this.deliveryFee = deliveryFee;
-        this.totalAmount = subtotal.add(deliveryFee);
+        this.discountAmount = discount == null ? BigDecimal.ZERO : discount;
+        this.voucherCode = voucherCode;
+        this.voucherId = voucherId;
+        BigDecimal total = subtotal.subtract(this.discountAmount).add(deliveryFee);
+        this.totalAmount = total.signum() < 0 ? BigDecimal.ZERO : total;
     }
 
     /** Đổi trạng thái theo đúng quy tắc nghiệp vụ. */
@@ -75,6 +95,9 @@ public class Order {
     public BigDecimal getSubtotal() { return subtotal; }
     public BigDecimal getDeliveryFee() { return deliveryFee; }
     public BigDecimal getTotalAmount() { return totalAmount; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public String getVoucherCode() { return voucherCode; }
+    public Long getVoucherId() { return voucherId; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -34,11 +34,15 @@ public class OrderService {
     private final RestaurantRepository restaurants;
     private final MenuItemRepository menuItems;
     private final AddressRepository addresses;
+    private final com.fooddelivery.realtime.OrderEvents events;
+    private final com.fooddelivery.voucher.VoucherService vouchers;
 
     public OrderService(OrderRepository orders, OrderItemRepository orderItems,
                         PaymentRepository payments, OrderStatusHistoryRepository history,
                         RestaurantRepository restaurants, MenuItemRepository menuItems,
                         AddressRepository addresses,
+                        com.fooddelivery.realtime.OrderEvents events,
+                        com.fooddelivery.voucher.VoucherService vouchers,
                         @Value("${app.delivery.base-fee:15000}") long baseFee,
                         @Value("${app.delivery.free-threshold:200000}") long freeThreshold) {
         this.orders = orders;
@@ -48,6 +52,8 @@ public class OrderService {
         this.restaurants = restaurants;
         this.menuItems = menuItems;
         this.addresses = addresses;
+        this.events = events;
+        this.vouchers = vouchers;
         this.baseDeliveryFee = BigDecimal.valueOf(baseFee);
         this.freeShipThreshold = BigDecimal.valueOf(freeThreshold);
     }
@@ -95,8 +101,13 @@ public class OrderService {
         BigDecimal deliveryFee = subtotal.compareTo(freeShipThreshold) >= 0
             ? BigDecimal.ZERO : baseDeliveryFee;
 
-        Order order = new Order(customerId, req.restaurantId(), req.addressId(), subtotal, deliveryFee);
-        orders.save(order);
+        // P2-3: áp voucher (validate + tính giảm + consume trong cùng transaction)
+        var applied = vouchers.applyForOrder(req.voucherCode(), req.restaurantId(), subtotal, deliveryFee);
+        deliveryFee = applied.deliveryAfter();
+
+        Order order = new Order(customerId, req.restaurantId(), req.addressId(), subtotal, deliveryFee,
+            applied.discount(), applied.voucherCode(), applied.voucherId());
+        order = orders.saveAndFlush(order);
 
         List<OrderItem> lines = new ArrayList<>();
         for (OrderDtos.CartLine line : req.items()) {
@@ -108,7 +119,9 @@ public class OrderService {
         Payment payment = new Payment(order.getId(), req.method());
         payments.save(payment);
         history.save(new OrderStatusHistory(order.getId(), null, OrderStatus.PENDING, customerId));
-        return toResponse(order, lines, payment);
+        var resp = toResponse(order, lines, payment);
+        events.placed(resp);
+        return resp;
     }
 
     private boolean isOpenNow(Restaurant r) {
@@ -153,7 +166,16 @@ public class OrderService {
         OrderStatus from = order.getStatus();
         order.changeStatus(OrderStatus.CANCELLED);
         history.save(new OrderStatusHistory(order.getId(), from, OrderStatus.CANCELLED, customerId));
-        return toResponse(order);
+        // P2-3: hủy đơn ONLINE đã PAID -> hoàn tiền
+        payments.findByOrderId(orderId).ifPresent(p -> {
+            if (p.getMethod() == Payment.Method.ONLINE && p.getStatus() == Payment.Status.PAID) {
+                p.markRefunded();
+                events.paymentChanged(orderId, order.getRestaurantId(), p.getStatus().name());
+            }
+        });
+        var resp = toResponse(order);
+        events.statusChanged(resp);
+        return resp;
     }
 
     @Transactional
@@ -179,7 +201,18 @@ public class OrderService {
                 if (p.getStatus() == Payment.Status.PENDING && p.getMethod() == Payment.Method.COD) p.markPaid();
             });
         }
-        return toResponse(order);
+        if (next == OrderStatus.CANCELLED) {
+            // P2-3: merchant hủy đơn ONLINE đã PAID -> hoàn tiền
+            payments.findByOrderId(orderId).ifPresent(p -> {
+                if (p.getMethod() == Payment.Method.ONLINE && p.getStatus() == Payment.Status.PAID) {
+                    p.markRefunded();
+                    events.paymentChanged(orderId, order.getRestaurantId(), p.getStatus().name());
+                }
+            });
+        }
+        var resp = toResponse(order);
+        events.statusChanged(resp);
+        return resp;
     }
 
     /** Thống kê doanh thu cho merchant: tổng đơn, tổng doanh thu, chia theo trạng thái. */
@@ -255,7 +288,8 @@ public class OrderService {
     private OrderDtos.OrderResponse toResponse(Order order, List<OrderItem> lines, Payment payment) {
         return new OrderDtos.OrderResponse(
             order.getId(), order.getRestaurantId(), order.getAddressId(), order.getStatus(),
-            order.getSubtotal(), order.getDeliveryFee(), order.getTotalAmount(),
+            order.getSubtotal(), order.getDeliveryFee(), order.getDiscountAmount(),
+            order.getVoucherCode(), order.getTotalAmount(),
             payment == null ? null : payment.getMethod(),
             payment == null ? null : payment.getStatus(),
             lines.stream().map(OrderDtos.OrderItemView::from).toList(),

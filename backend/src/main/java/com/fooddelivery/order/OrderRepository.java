@@ -12,6 +12,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Page<Order> findByRestaurantIdOrderByCreatedAtDesc(Long restaurantId, Pageable pageable);
     List<Order> findByRestaurantId(Long restaurantId);
     Page<Order> findByStatus(OrderStatus status, Pageable pageable);
+    List<Order> findByRestaurantIdAndCreatedAtBetween(Long restaurantId, java.time.Instant from, java.time.Instant to);
+    List<Order> findByCreatedAtBetween(java.time.Instant from, java.time.Instant to);
 
     @Query("select coalesce(sum(o.totalAmount), 0) from Order o where o.restaurantId = :restaurantId and o.status <> 'CANCELLED'")
     java.math.BigDecimal sumRevenueByRestaurant(Long restaurantId);
